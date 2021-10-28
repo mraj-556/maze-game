@@ -1,0 +1,318 @@
+from tkinter import *
+from tkinter import messagebox
+import tkinter as tk
+from functools import partial
+# import intro
+
+    # https://www.delftstack.com/howto/python-tkinter/how-to-pass-arguments-to-tkinter-button-command/
+
+            ####################################  Functions  #####################################
+
+def main_scr(screen):
+    if screen:
+        pass
+    else:
+        screen=Tk()
+        screen.title('MAZE')
+        screen.geometry('500x500+550+180')
+        
+    qn_btn=Button(screen,text='Question',command=lambda:create_qn_scr(screen),bd='5',fg='blue',font=('calibre',10,'bold')).place(x=200,y=40)
+    ans_btn=Button(screen,text="Solve",bd='5',fg='blue',font=('calibre',10,'bold'),command=lambda:create_ans_scr(screen)).place(x=210,y=90)
+    btn_manual=Button(screen,text='Manual',fg='blue',font=('calibre',10,'bold'),bd='5',command=partial(manual_msg)).place(x=205,y=140)
+
+          #################################  Functions (for obstacle choose) ############################
+def remove_obstacle(obstacle_name,btn_obj):
+    Button_name[obstacle_name]=1
+    btn_obj.config(bg='cyan')
+
+def set_obstacle_clr(obstacle_name,btn_obj):
+    if btn_obj.cget('bg')=='red':
+        remove_obstacle(obstacle_name,btn_obj)
+    else:
+        btn_obj.config(bg='red')
+
+def set_1(name,new_name):                # for setting 0 in matrix when the button is clicked
+    Button_name[name]=0
+    set_obstacle_clr(name,new_name)
+    # print(Button_name)
+    # print()
+
+def submit_func(screen,dict_name,grid_x,grid_y):
+    confirm_msg=messagebox.showinfo('Submit status','Successfully uploaded')
+    back_func(screen)
+
+    global sol_matrix
+    qn_list=dict_to_matrix(dict_name,grid_x,grid_y)           # qn matrix
+    sol_matrix=create_sol_matrix(grid_x,grid_y)               # creates the null sol_matrix
+    # create_user_sol_matrix(grid_x,grid_y)                     # creates user sol matrix initialized with 0
+    path_find(qn_list,grid_x,grid_y,0,0,sol_matrix,'+y')      # returns ans matrix
+
+    ans_database.append(sol_matrix)
+    qn_database.append(qn_list)
+    # print('ans : ',sol_matrix)
+    return sol_matrix
+
+
+            ######################  Functions to convert dict to 2d list(matrix) ####################
+
+def dict_to_matrix(Button_name,grid_x,grid_y):
+
+    key=list(Button_name.keys())
+    val=list(Button_name.values())
+
+    global matrix
+    matrix=[]
+
+    for i in range(grid_x):
+        a=[]
+        for j in range(grid_y):
+            a.append(0)
+        matrix.append(a)
+    
+    for i in range(len(key)):
+        matrix[ int(key[i][0]) ][ int(key[i][1]) ] = val[i]
+
+    # print('qn :',matrix)
+    return matrix
+    
+    
+                ############################  BACKTRACKING ############################
+
+def create_sol_matrix(grid_x,grid_y):
+    sol_matrix=[]
+
+    for i in range(grid_x):
+        a=[]
+        for i in range(grid_y):
+            a.append(0)
+        sol_matrix.append(a)
+
+    return sol_matrix
+
+def create_user_sol_matrix(grid_x,grid_y):
+
+    global user_sol_matrix
+    user_sol_matrix=[]
+
+    for i in range(grid_x):
+        a=[]
+        for i in range(grid_y):
+            a.append(0)
+        user_sol_matrix.append(a)
+
+    return user_sol_matrix
+
+
+def can_go(qn,x_pos,y_pos):
+    if (x_pos>=0 and y_pos>=0) and ( x_pos<len(qn) and y_pos<len(qn[0]) ) and qn[x_pos][y_pos]==1:
+        return True
+    return False
+
+def path_find(qn,grid_x,grid_y,x_pos,y_pos,sol_matrix,dirs):
+    if x_pos==grid_x-1 and y_pos==grid_x-1:
+        # print(x_pops,y_pos,dirs)
+        sol_matrix[x_pos][y_pos]=1
+        return True
+
+    if can_go(qn,x_pos,y_pos):
+        # print(x_pos,y_pos,dirs)
+        sol_matrix[x_pos][y_pos]=1
+        if dirs!='-x' and path_find(qn,grid_x,grid_y,x_pos+1,y_pos,sol_matrix,'+x') :
+            return True
+        if dirs!='-y' and path_find(qn,grid_x,grid_y,x_pos,y_pos+1,sol_matrix,'+y') :
+            return True
+        if dirs!='+y' and path_find(qn,grid_x,grid_y,x_pos,y_pos-1,sol_matrix,'-y') :
+            return True
+        if dirs!='+x' and path_find(qn,grid_x,grid_y,x_pos-1,y_pos,sol_matrix,'-x') :
+            return True
+
+        sol_matrix[x_pos][y_pos]=0
+        # print(x_pos,y_pos,dirs,'backtracked')
+        return False
+    return False
+
+          ##############################  Functions for manual button ############################
+
+def manual_msg():
+    messagebox.showinfo('Manual','First choose the starting point')
+
+          ##############################  Functions for back button ############################
+
+def back_func(screen_name):
+    screen = Tk()
+    screen.title('MAZE')
+    screen.geometry('500x500+550+180')
+    # warn_unsaved=messagebox.showwarning('unsaved work','Your work was lost')
+    screen_name.destroy()
+    main_scr(screen)
+    
+          ########################  Functions for creating the grid button button #######################
+
+def create_button(name,x_pos,y_pos,scr_name):
+    new_name=Button(scr_name,text=name,fg='green',padx=5,pady=5,bd='5',bg='cyan',activebackground='red')
+    new_name.config(command=lambda:set_1(name,new_name))
+    new_name.place(x=x_pos,y=y_pos)
+
+          ##############################  Functions for creating qn page ############################
+
+def create_qn_scr(screen):
+    try:
+        screen.destroy()
+    except:
+        pass
+
+    global grid_x,grid_y
+    grid_x=int(input('x value : '))
+    grid_y=grid_x
+
+    qn_scr=Tk()
+    qn_scr.geometry('500x500+550+180')
+
+    init_x=50
+    init_y=50
+
+    btn_x=init_x
+    btn_y=init_y
+
+    global Button_name
+    Button_name={}    
+    for i in range(grid_x):
+        btn_y=init_y + (30*i)
+        a=[]
+        for j in range(grid_x):
+            btn_x=init_x+(30*j)
+            name=str(i)+str(j)
+            # name='B'
+            create_button(name,btn_x,btn_y,qn_scr)
+            Button_name[name]=1
+
+# https://www.delftstack.com/howto/python-tkinter/how-to-pass-arguments-to-tkinter-button-command/
+
+    back_btn=Button(qn_scr,text='Cancel/Back',fg='green',bd='5',command=lambda:back_func(qn_scr)).place(x=350,y=450)
+    submit_btn=Button(qn_scr,text='Submit',fg='green',bd='5',command=lambda:submit_func(qn_scr,Button_name,grid_x,grid_y)).place(x=250,y=350)
+          
+          ##############################  Functions for solving page ############################
+
+def ask_qn_num(qn_database,screen_name,grid_x,grid_y):
+    screen_name.destroy()
+
+    ask_scr=Tk()
+    ask_scr.geometry('500x500+550+180')
+
+    qn_num=Label(ask_scr,text='Enter number : ').place(x=50,y=50)
+    num=IntVar()
+    qn_entry=Entry(ask_scr,textvariable=num).place(x=200,y=50)
+
+    qn_num_submit_btn=Button(ask_scr,text='Submit',fg='green',bd='5',command=lambda:qn_num_submit(ask_scr,num,qn_database,grid_x,grid_y)).place(x=200,y=150)
+
+
+def qn_num_submit(scr_name,num,qn_database,grid_x,grid_y):
+    a=num.get()
+    
+    if a < len(qn_database)  and a>=0 :
+        l=qn_database
+        scr_name.destroy()
+        scr_name=Tk()
+        scr_name.geometry('500x500+500+180')
+        print_qn(l,a , scr_name)
+    else:
+        exceed_num=messagebox.showwarning('error','Qn num invalid')
+        ask_qn_num(qn_database,scr_name,grid_x,grid_y)
+
+def ans_page_btn(name,x_loc , y_loc , clr,qn,scr_name):
+    if qn[ int(name[0])] [ int(name[1]) ]==1:
+        btn_name= Button(scr_name,text=name,fg='blue',bg=clr,bd='5',activebackground='green')
+    else:
+        btn_name= Button(scr_name,text=name,fg='blue',bg=clr,bd='5',activebackground='red')
+
+    btn_name.place(x = x_loc , y = y_loc)
+    btn_name.config(command=lambda:ans_btn(name,btn_name,qn,scr_name))
+
+def print_qn(l , qn_num , scr_name):
+    qn=l[qn_num]
+    init_x=50
+    init_y=50
+
+    cur_x=init_x
+    cur_y=init_y
+
+    create_user_sol_matrix( len(qn),len( qn[0] ) )           # creates user sol matrix initialized with 0
+
+    if True:
+        # print(qn)
+        for i in range(len(qn)):
+            cur_y = init_y + (35*i)
+            for j in range(len(qn[i])):
+                cur_x = init_x + (35*j)
+                name=str(i)+str(j)
+                if qn[i][j]==1:
+                    ans_page_btn(name,cur_x,cur_y,'cyan',qn,scr_name)
+                else:
+                    ans_page_btn(name,cur_x,cur_y,'red',qn,scr_name)
+    else:
+        err_msg=messagebox.showwarning('warning..!','Error')
+
+    # print(qn)
+    # print(user_sol_matrix)
+
+    back_btn=Button(scr_name,text='Cancel/Back',fg='green',bd='5',command=lambda:back_func(scr_name)).place(x=350,y=450)
+    submit_btn=Button(scr_name,text='Submit',fg='green',bd='5',command=lambda:ans_submit(user_sol_matrix,qn_num)).place(x=250,y=350)
+
+
+def ans_btn(name,btn_name,qn,scr_name):
+    if qn[ int(name[0])] [ int(name[1]) ]==1 and btn_name.cget('bg') != 'green':
+        btn_name.config(bg='green')
+        user_sol_matrix[ int(name[0]) ] [ int(name[1]) ]=1
+
+    elif qn[ int(name[0])] [ int(name[1]) ]==1 and btn_name.cget('bg') == 'green':
+        btn_name.config(bg='cyan')
+        user_sol_matrix[ int(name[0]) ] [ int(name[1]) ]=0
+
+    else:
+        wrong_btn = messagebox.showwarning('wrong',' you can\'t choose an obstacle..')
+
+    
+def create_ans_scr(screen):
+    try:
+        screen.destroy()
+    except:
+        pass
+    ans_scr=Tk()
+    ans_scr.title('Solve A question')
+    ans_scr.geometry('500x500+550+180')
+    # msg_label=tk.Label(ans_scr,text='Under Construction...').place(x=100,y=50)
+    back_btn=Button(ans_scr,text='Back',fg='green',bd='5',command=lambda:back_func(ans_scr)).place(x=400,y=450)
+
+    if qn_database :
+        qn_show_btn= Button(ans_scr,text='Choose question',fg='green',bd='5',command=lambda:ask_qn_num(qn_database,ans_scr,grid_x,grid_x)).place(x=170,y=200)
+    else:
+        warning=messagebox.showinfo('Warning..!','No question is available now...please wait for question to be uploaded, or you create a queestion for others..')
+        back_func(ans_scr)
+
+def ans_submit(user_sol_matrix,qn_num):
+    # print('user : ',user_sol_matrix)
+    # print('ans_data : ',ans_database)
+    if user_sol_matrix == ans_database[qn_num]:
+        winner=messagebox.showinfo('Result','Congrats...!\n You Won the game...')
+    else:
+        winner=messagebox.showinfo('Result','Opps...!\n You loose the game. Don\'t stop. Try again.')
+
+#############################################################################################################
+
+
+            ####################################  Create screen and setups  #####################################
+
+qn_database=[]
+ans_database=[]
+
+screen = Tk()
+screen.title('MAZE')
+screen.geometry('500x500+550+180')
+
+main_scr(screen)
+
+screen.mainloop()
+
+print('qn_database  : ' ,qn_database)
+print('ans_database : ' ,ans_database)
+print('user ans     : ' ,user_sol_matrix)

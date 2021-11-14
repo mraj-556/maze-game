@@ -938,12 +938,10 @@ type_btn='none'
 
 start_btn = []
 end_btn = []
-# intro.intro()
-# reg_log_page('login',scr_name)
-frame=Frame(scr_name,bg='red',width=1366,height=770)
-home_scr(scr_name,frame)
-
-# loan(frame)
+intro.intro()
+reg_log_page('login',scr_name)
+# frame=Frame(scr_name,bg='red',width=1366,height=770)
+# home_scr(scr_name,frame)
 
 scr_name.mainloop()
 

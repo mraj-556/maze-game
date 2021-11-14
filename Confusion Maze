@@ -1,129 +1,531 @@
 from tkinter import *
+import sqlite3 as sql
 from tkinter import messagebox
 import tkinter as tk
-from functools import partial
-# import intro
+import json
+import time
+import pygame as pg
+import datetime as dt
+from dateutil import relativedelta
+import intro
 
-    # https://www.delftstack.com/howto/python-tkinter/how-to-pass-arguments-to-tkinter-button-command/
 
-            ####################################  Functions  #####################################
+                    ##########################  clear scr_name  ##########################
 
-def main_scr(screen):
-    if screen:
-        pass
+def clear_scr(frame_name):
+    frame_name.destroy()
+
+                    ##########################  Reg/log blueprint  ##########################
+
+def page_switch(switch_to,frame_name,scr_name):
+    click()
+    clear_scr(frame_name)
+    reg_log_page(switch_to,scr_name)
+
+
+def reg_log_page(page_type,scr_name):
+
+    username_var=StringVar()
+    password1_var=StringVar()
+
+
+    frame= Frame(scr_name,width=1366,height=770,bg='blue')
+    frame.place(x=0,y=0)
+
+    user_name_label= Label(frame,text='User name : ',bg='blue',font='bold').place(x=500,y=250)
+    user_pswd_label= Label(frame,text='Password  : ',bg='blue',font='bold').place(x=500,y=300)
+    
+    name_entry= Entry(frame,textvariable=username_var).place(x=620,y=250)
+    pswd_entry= Entry(frame,textvariable=password1_var).place(x=620,y=300)
+
+    if page_type=='login':
+        scr_name.title('Login')
+        new_user_btn = Button(frame,text='Register Here',bg='red',bd='5',command=lambda:page_switch('register',frame,scr_name) ).place(x=600,y=420)
+        submit= Button(frame,text='Submit',bg='green',bd='5',command=lambda:user_login(frame,scr_name,username_var,password1_var)).place(x=622,y=360)
+
+    elif page_type=='register':
+        scr_name.title('Register')
+        password2_var=StringVar()
+        confirm_pswd= Label(frame,text='Password  : ',bg='blue',font='bold').place(x=500,y=350)
+        confirm_pswd_entry= Entry(frame,textvariable=password2_var).place(x=620,y=350)
+        back_btn= Button(frame,text='Back',bg='red',bd='5',command=lambda:page_switch('login',frame,scr_name) ).place(x=627,y=520)
+        submit= Button(frame,text='Submit',bg='green',bd='5',command=lambda:user_reg(frame,scr_name,username_var,password1_var,password2_var)).place(x=622,y=450)
+    
+
+                    ##########################  Register  ##########################
+
+def user_reg(frame_name,scr_name,username_var,password1_var,password2_var):
+    click()
+    username = username_var.get()
+    password1 = password1_var.get()
+    password2 = password2_var.get()
+
+    if (password1 and password2 and username):
+        if (password1 == password2):
+            try:
+                con=sql.connect('login_database.db')
+                c=con.cursor()
+                solved = []
+                solved = json.dumps(solved)
+                c.execute('insert into login_data(users,password,points,solved_qn) values(?,?,?,?)',(username,password1,0,solved))
+                con.commit()
+                con.close()
+                reg_success = messagebox.showwarning('Message','Registration Successfull..\n 10 points given to you as a bonus.')
+                page_switch('login',frame_name,scr_name)
+            except:
+                alert()
+                user_exist = messagebox.showwarning('Error','User already exist')        
+        else:
+            alert()
+            mismatch_pswd = messagebox.showwarning('Error','Password mismatch')
     else:
-        screen=Tk()
-        screen.title('MAZE')
-        screen.geometry('500x500+550+180')
-        
-    qn_btn=Button(screen,text='Question',command=lambda:create_qn_scr(screen),bd='5',fg='blue',font=('calibre',10,'bold')).place(x=200,y=40)
-    ans_btn=Button(screen,text="Solve",bd='5',fg='blue',font=('calibre',10,'bold'),command=lambda:create_ans_scr(screen)).place(x=210,y=90)
-    btn_manual=Button(screen,text='Manual',fg='blue',font=('calibre',10,'bold'),bd='5',command=partial(manual_msg)).place(x=205,y=140)
+        alert()
+        null_inp = messagebox.showwarning('Error','Enter required data')
 
-          #################################  Functions (for obstacle choose) ############################
-def remove_obstacle(obstacle_name,btn_obj):
-    Button_name[obstacle_name]=1
-    btn_obj.config(bg='cyan')
 
-def set_obstacle_clr(obstacle_name,btn_obj):
-    if btn_obj.cget('bg')=='red':
-        remove_obstacle(obstacle_name,btn_obj)
+                    ##########################  Login  ##########################
+
+def user_login(frame_name,scr_name,username_var,password_var):
+    click()
+    username = username_var.get()
+    password = password_var.get()
+
+    if username and password:
+        try:
+        # if True:
+            con=sql.connect('login_database.db')
+            c=con.cursor()
+            querry_pswd=c.execute('select password from login_data where users=? ', ([username]))
+            querry_pswd = querry_pswd.fetchall()[0][0]
+            if password == querry_pswd:
+                global login_username
+                login_username = username
+                home_scr(scr_name,frame_name)
+            else:
+                alert()
+                pswd_wrong = messagebox.showwarning('Error','Wrong password')                
+            con.commit()
+            con.close()
+        except:
+        # else:
+            alert()
+            user_unexist = messagebox.showwarning('Error','User not found')
     else:
-        btn_obj.config(bg='red')
-
-def set_1(name,new_name):                # for setting 0 in matrix when the button is clicked
-    Button_name[name]=0
-    set_obstacle_clr(name,new_name)
-    # print(Button_name)
-    # print()
-
-def submit_func(screen,dict_name,grid_x,grid_y):
-    confirm_msg=messagebox.showinfo('Submit status','Successfully uploaded')
-    back_func(screen)
-
-    global sol_matrix
-    qn_list=dict_to_matrix(dict_name,grid_x,grid_y)           # qn matrix
-    sol_matrix=create_sol_matrix(grid_x,grid_y)               # creates the null sol_matrix
-    # create_user_sol_matrix(grid_x,grid_y)                     # creates user sol matrix initialized with 0
-    path_find(qn_list,grid_x,grid_y,0,0,sol_matrix,'+y')      # returns ans matrix
-
-    ans_database.append(sol_matrix)
-    qn_database.append(qn_list)
-    # print('ans : ',sol_matrix)
-    return sol_matrix
+        alert()
+        null_inp = messagebox.showwarning('Error','Enter required data')
 
 
-            ######################  Functions to convert dict to 2d list(matrix) ####################
+                    ##########################  Home screen  ##########################
 
-def dict_to_matrix(Button_name,grid_x,grid_y):
+def home_scr(scr_name,frame_name):
+    clear_scr(frame_name)
+    home_frame=Frame(scr_name,bg='red',width=1366,height=770)
+    home_frame.pack()
+    scr_name.title('Home')
 
-    key=list(Button_name.keys())
-    val=list(Button_name.values())
+    qn_btn     =  Button(home_frame,text='Question',bd='5',bg='cyan',command=lambda:ask_grid_size(home_frame,scr_name) ).place(x=615,y=265)
+    solve_btn  =  Button(home_frame,text='Solve',bd='5',bg='blue',command=lambda:ask_qn_num(home_frame,scr_name),padx='20',pady='8' ).place(x=520,y=325)
+    manual_btn =  Button(home_frame,text='Manual',bd='5',bg='blue',command=lambda:manual(home_frame),pady='6' ).place(x=707,y=325)
+    exit_btn =  Button(home_frame,text='Exit',bd='5',bg='cyan',command=lambda:exits(),padx='30' ).place(x=616,y=385)
 
-    global matrix
-    matrix=[]
-
-    for i in range(grid_x):
-        a=[]
-        for j in range(grid_y):
-            a.append(0)
-        matrix.append(a)
+def exits():
+    click()
+    reg_log_page('login',scr_name)
     
-    for i in range(len(key)):
-        matrix[ int(key[i][0]) ][ int(key[i][1]) ] = val[i]
 
-    # print('qn :',matrix)
-    return matrix
-    
-    
-                ############################  BACKTRACKING ############################
+                    ##########################  matrix creation  ##########################
 
-def create_sol_matrix(grid_x,grid_y):
+def create_matrix(grid_x):
+    global qn_matrix, sol_matrix, user_sol_matrix
+    qn_matrix=[]
     sol_matrix=[]
 
     for i in range(grid_x):
-        a=[]
-        for i in range(grid_y):
-            a.append(0)
-        sol_matrix.append(a)
+        q, s = [], []
+        for j in range(grid_x):
+            q.append(1)
+            s.append(0)
+        qn_matrix.append(q)
+        sol_matrix.append(s)
 
-    return sol_matrix
+            ##########################  Button type detection  ##########################
 
-def create_user_sol_matrix(grid_x,grid_y):
+def btn_type(btn_name):
+    type_choose()
+    global start_count,end_count,type_btn
+    # global start_count,end_count,type_btn,start_btn,end_btn
+    type_btn = btn_name.cget('bg')
+    if type_btn=='red':     # obstacle
+        return type_btn
 
-    global user_sol_matrix
-    user_sol_matrix=[]
+    if type_btn=='blue' :    # starting
+        # print(type_btn,start_count)
+        if start_count == 0:
+            start_count = 1
+        elif start_count==2:
+            pass
+        return type_btn
+
+    if type_btn=='yellow':    # Ending
+        # print(type_btn,end_count)
+        if end_count == 0:
+            end_count=1
+        elif end_count==2:
+            pass
+        return type_btn
+
+def btn_type_apply(btn_id, matrix_btn):
+    global start_count,end_count,type_btn,start_btn,end_btn
+
+    if type_btn !='none':
+        if type_btn=='red':
+            add_obstacle(btn_id, matrix_btn)
+
+        if type_btn=='blue':
+            # print('start : ',start_btn,'btn_id : ',btn_id,'c : ',start_count)
+            if start_count==1 or start_btn == btn_id :
+                start_count=2
+                add_starting(btn_id, matrix_btn)
+            else:
+                alert()
+                multi_start = messagebox.showwarning('Multistart error','You can choose only one start point')
+
+        if type_btn=='yellow':
+            # print('End : ',start_btn,'btn_id : ',btn_id,'c : ',end_count)
+            if end_count==1 or end_btn==btn_id :
+                end_count = 2
+                add_ending(btn_id, matrix_btn)
+            else:
+                alert()
+                multi_end = messagebox.showwarning('Multistart error','You can choose only one end point')
+    else:
+        alert()
+        null_type_error = messagebox.showwarning('Type error','Please choose the type from right side buttons')
+
+
+                    ##########################  obstacle  ##########################
+
+def add_obstacle(btn_id, matrix_btn):
+    btn_clr = matrix_btn.cget('bg')
+    if btn_clr =='cyan':
+        click()
+        qn_matrix [ int(btn_id[0]) ] [ int(btn_id[1]) ] = 0
+        matrix_btn.config(bg='red',text='X')
+    elif btn_clr =='red':
+        click_cancel()
+        qn_matrix [ int(btn_id[0]) ] [ int(btn_id[1]) ] = 1
+        matrix_btn.config(bg='cyan' ,text='B')
+
+                    ##########################  starting  ##########################
+
+def add_starting(btn_id, matrix_btn):
+    global start_btn, start_count
+    btn_clr = matrix_btn.cget('bg')
+    if btn_clr == 'cyan':
+        click()
+        qn_matrix [ int(btn_id[0]) ] [ int(btn_id[1]) ] = 1
+        matrix_btn.config(bg='blue',text='S')
+        start_btn = btn_id
+        # print('start : ',start_btn,'end : ',end_btn)
+    elif btn_clr=='blue':
+        click_cancel()
+        qn_matrix [ int(btn_id[0]) ] [ int(btn_id[1]) ] = 1
+        matrix_btn.config(bg='cyan',text='B')
+        start_count=1
+        start_btn=[]
+        # print('start reseted : ',start_count)
+
+
+                    ##########################  ending  ##########################
+
+def add_ending(btn_id, matrix_btn):
+    global end_btn,end_count
+    btn_clr = matrix_btn.cget('bg')
+    if btn_clr =='cyan':
+        click()
+        qn_matrix [ int(btn_id[0]) ] [ int(btn_id[1]) ] = 1
+        matrix_btn.config(bg='yellow',text='E',fg='blue')
+        end_btn=btn_id
+        # print('start : ',start_btn,'end : ',end_btn)
+    elif btn_clr=='yellow':
+        click_cancel()
+        qn_matrix [ int(btn_id[0]) ] [ int(btn_id[1]) ] = 1
+        matrix_btn.config(bg='cyan',text='B')
+        end_count=1
+        end_btn=[]
+        # print('End reseted : ',end_count)
+
+                    ##########################  Loan system  ##########################
+
+def loan(frame_name):
+    click()
+    if frame_name:
+        clear_scr(frame_name)
+    
+    loan_frame = Frame(scr_name,bg='green',width=1366,height=770)
+    loan_frame.pack()
+    scr_name.title('Seeking Loan')
+
+    global bank_btn,community_btn,bank_val,community_val
+
+    bank_val = IntVar()
+    community_val = IntVar()
+
+    info_lbl = Label(loan_frame,text='Choose your money lender : ',bg='green',font='bold',fg='white').place(x=300,y=200)
+    bank_btn = Checkbutton(loan_frame,text='Official',variable=bank_val,onvalue=1,offvalue=0,bg='green',font='bold',highlightthickness='0',activebackground='green',cursor='hand2')
+    bank_btn.config(command=lambda:choosen_lender(bank_val,bank_btn,loan_frame))
+    bank_btn.place(x=600,y=250)
+
+    community_btn = Checkbutton(loan_frame,text='Community',variable=community_val,onvalue=1,offvalue=0,bg='green',font='bold',highlightthickness='0',activebackground='green',cursor='hand2')
+    community_btn.config(command=lambda:choosen_lender(bank_val,community_btn,loan_frame))
+    community_btn.place(x=600,y=300)
+
+
+def choosen_lender(varr,btn,frame_name):
+
+    btn_name = btn.cget('text')
+
+    if btn_name=='Official':
+        community_btn.deselect()
+        loan_form('official',frame_name)
+    elif btn_name=='Community':
+        bank_btn.deselect()
+        # soon_update = messagebox.showinfo('Notice','This will be available soon')
+        loan_form('community',frame_name)
+
+    # print(bank_val.get(),community_val.get())
+
+def loan_form(lender,frame_name):
+    if frame_name:
+        clear_scr(frame_name)
+
+    loan_form_frame = Frame(scr_name,bg='green',width=1366,height=770)
+    loan_form_frame.pack()
+    scr_name.title('Loan Form')
+    
+    amount=IntVar()
+
+    amount_lbl = Label(loan_form_frame,text='Amount : ',bg='green',font=('Vardan',10,'bold')).place(x=500,y=250)
+    amount_entry = Entry(loan_form_frame,textvariable=amount,bg='green',fg='black',font='bold',bd='2',highlightcolor='cyan',highlightthickness='2')
+    amount_entry.place(x=580,y=250)
+    amount_entry.delete(0,END)
+
+    if lender=='official':
+        # amount_lbl = Label(loan_form_frame,text='Amount : ',bg='green',font=('Vardan',10,'bold')).place(x=500,y=250)
+        # amount_entry = Entry(loan_form_frame,textvariable=amount,bg='green',fg='black',font='bold',bd='2')
+        # amount_entry.place(x=580,y=250)
+        # amount_entry.delete(0,END)
+        lender_name = 'official'
+
+        lender_lbl = Label(loan_form_frame,text='Lender\'s Name : Officials',bg='green',fg='black',font=('Vardan',13,'bold')).place(x=500,y=300)
+        cond_lbl = Label(loan_form_frame,bg='green',text='Max amount : 100 points\n Interest : 2% per 5 days\n\nTime Limit : 20 days\n Fine : 1.5 times of amount')
+        cond_lbl.place(x=580,y=350)
+
+    elif lender=='community':
+        # soon_update = messagebox.showinfo('Notice','This will be available soon')
+        # loan_form_frame()
+
+        lender_name = StringVar()
+
+        lender_lbl = Label(loan_form_frame,text='Lender\'s Name : ',bg='green',fg='black',font=('Vardan',13,'bold')).place(x=500,y=300)
+        lender_entry = Entry(loan_form_frame,textvariable=lender_name,bg='green',fg='black',font=('Vardan',13,'bold'),highlightcolor='cyan',highlightthickness='2').place(x=670,y=300)
+        cond_lbl = Label(loan_form_frame,bg='green',text='Max amount : 100 points\n Interest : 2% per 5 days\n\nTime Limit : 20 days\n Fine : 1.5 times of amount')
+        cond_lbl.place(x=580,y=350)
+
+    submit_btn = Button(loan_form_frame,text="Request",bd='5',bg='cyan',command=lambda:loan_database_update(lender_name,amount)).place(x=610,y=450)
+    back_btn = Button(loan_form_frame,text='Cancel/Back',bd='5',bg='red',command=lambda:back(loan_form_frame)).place(x=600,y=495)
+
+
+def loan_database_update(lenders,amounts):
+
+    login_username = 'Ashutosh'
+    username = login_username
+    lender = lenders.get()
+    if lender=='official' or lender=='community' :
+        amount = amounts.get()
+        interest = 1
+        sanctioned_date = dt.datetime.now()
+        last_date = sanctioned_date + relativedelta.relativedelta(days=15)
+        remaining = 15
+    
+        
+    # if lender=='community':
+    #     pass
+
+    # try:
+    if True:
+        con=sql.connect('loan_database.db')
+        c=con.cursor()
+        print(lender,username,amount,interest,sanctioned_date,last_date,remaining)
+        c.execute('insert into loan(lender,username,amount,interest,sanctioned_date,last_date,remaining) values(?,?,?,?,?,?,?)', ([lender,username,amount,interest,sanctioned_date,last_date,remaining]) )
+        con.commit()
+        con.close()
+    # except:
+    else:
+        database_err = messagebox.showwarning('Error','ERROR..!')    
+
+
+                    ##########################  Question page  ##########################
+
+def ask_grid_size(frame_name,scr_name):
+    clear_scr(frame_name)
+    click()
+
+    ask_frame = Frame(scr_name,bg='red',width=1366,height=770)
+    ask_frame.pack()
+
+    scr_name.title(' ')
+
+    grid_x_val = IntVar()
+    ask_label= Label(ask_frame,text='Enter Grid Size : ',bg='red',font='bold').place(x=490,y=250)
+    
+
+    ask_entry=  Entry(ask_frame,textvariable=grid_x_val)
+    ask_entry.place(x=630,y=250)
+    ask_entry.delete(0,END)
+
+    loan_btn = Button(ask_frame,text='Loan',bg='blue',bd='5',fg='black',font=('Verdana',10,'bold'),command=lambda:loan(ask_frame)).place(x=1000,y=400)
+
+    submit_btn = Button(ask_frame,text='Submit',bd='5',bg='green',command=lambda:validation_qn_page(ask_frame,grid_x_val) ).place(x=630,y=320)
+    back_btn = Button(ask_frame,text='Back',bd=5,bg='red',fg='green',command=lambda:back(ask_frame)).place(x=632,y=370)
+
+def validation_qn_page(frame_name , grid_x_val):
+    click()
+    try:
+    # if True:
+        grid_x = grid_x_val.get()
+
+        if grid_x  and grid_x>=2 and grid_x<=20:
+            create_qn_page(frame_name,grid_x)
+        else:
+            alert()
+            zero_inp=messagebox.showwarning('error','Enter valid number (2 > x <= 20)')
+            ask_grid_size(frame_name,scr_name)
+    except:
+    # else:
+        alert()
+        null_inp=messagebox.showwarning('error','Enter the value')
+
+def create_btn(frame_name, x_pos, y_pos, btn_id):
+    matrix_btn = Button(frame_name,text='B',fg='green',padx=7,pady=2,bd='5',bg='cyan',activebackground='red')
+    matrix_btn.config(command=lambda:btn_type_apply(btn_id, matrix_btn))
+    matrix_btn.place(x=x_pos,y=y_pos)
+
+
+def create_qn_page(frame_name,grid_x):
+    global start_btn,end_btn
+    qn_bgm()
+
+    clear_scr(frame_name)
+
+    qn_frame= Frame(scr_name,bg='yellow',width=1366,height=770)
+    qn_frame.pack()
+
+    scr_name.title('Solve Question')
+
+    obstacle = Button(qn_frame,text='Obstacle',bd=5,bg='red')
+    obstacle.config(command=lambda: btn_type(obstacle))
+    obstacle.place(x=1100,y=200)
+
+    starting = Button(qn_frame,text='Start',bd=5,bg='blue')
+    starting.config(command=lambda: btn_type(starting))
+    starting.place(x=1100,y=250)
+
+    ending = Button(qn_frame,text='End',bd=5,bg='yellow')
+    ending.config(command=lambda: btn_type(ending))
+    ending.place(x=1100,y=300)
+
+    init_x = 500 - (grid_x//2)*30
+    init_y = 350 - (grid_x//2)*30
+
+    btn_x=init_x
+    btn_y=init_y
+
+    create_matrix(grid_x)
 
     for i in range(grid_x):
-        a=[]
-        for i in range(grid_y):
-            a.append(0)
-        user_sol_matrix.append(a)
+        btn_y=init_y + (30*i)
+        for j in range(grid_x):
+            btn_x=init_x+(30*j)
+            btn_id = [ str(i) , str(j) ]
+            create_btn(qn_frame, btn_x,btn_y, btn_id)
 
-    return user_sol_matrix
+    x_pos = 0
+    y_pos = 0
+
+    submit_btn = Button(qn_frame,text='Submit',bd=5,bg='green',fg='cyan',command=lambda:backtrack(qn_frame,qn_matrix,grid_x,x_pos,y_pos,sol_matrix,'+x')).place(x=1100,y=500)
+    back_btn = Button(qn_frame,text='Back/cancel',bd=5,bg='green',fg='cyan',command=lambda:back(qn_frame)).place(x=1080,y=550)
+
+def back(frame_name):
+    click()
+    home_scr(scr_name,frame_name)
+
+                    ##########################  Backtrack  ##########################
+
+def backtrack(frame_name,qn_matrix,grid_x,x_pos,y_pos,sol_matrix,dirs):
+    global start_btn,end_btn
+    # print(start_btn,end_btn)
+    click()
+
+    if start_btn==[0,0] or end_btn==[0,0] or start_btn==[] or end_btn==[] :
+        alert()
+        data_missing_err = messagebox.showwarning('Error','You have to choose both start and end point')
+        # qn_bgm()
+    else:
+        # print('x : ',start_btn[0],'y : ',start_btn[1] )
+
+        x_pos = int( start_btn[0] )
+        y_pos = int( start_btn[1] )
+
+        path_find(qn_matrix,grid_x,x_pos,y_pos,sol_matrix,dirs)
+        print('qn : ',qn_matrix)
+        print('sol : ',sol_matrix)
+        try:
+            # successfull()
+            # upload_success = messagebox.showwarning('successfull','No database..Upload Successfull..!')
+        # if True:
+            # login_username='Ashutosh'
+            qn_id= str(login_username)
+            con=sql.connect('lqn_database.db')
+            c=con.cursor()
+            qn_matrixes  = json.dumps(qn_matrix)
+            sol_matrixes = json.dumps(sol_matrix)
+            start_btn_id = json.dumps(start_btn)
+            end_btn_id   = json.dumps(end_btn)
+            c.execute('insert into questions(id,question,start,end,solution,mark,tag ) values(?,?,?,?,?,?,?)',([login_username,qn_matrixes,start_btn_id,end_btn_id,sol_matrixes,1,'easy']) )
+            con.commit()
+            con.close()
+            successfull()
+            upload_success = messagebox.showwarning('successfull','Upload Successfull..!')
+            qn_matrix=[]
+        except:
+        # else:
+            alert()
+            upload_err = messagebox.showwarning('Error','Similar question exists. Be creative')
 
 
-def can_go(qn,x_pos,y_pos):
-    if (x_pos>=0 and y_pos>=0) and ( x_pos<len(qn) and y_pos<len(qn[0]) ) and qn[x_pos][y_pos]==1:
+def if_can_go(qn_matrix,x_pos,y_pos):
+    if (x_pos>=0 and y_pos>=0) and ( x_pos<len(qn_matrix) and y_pos<len(qn_matrix[0]) ) and qn_matrix[x_pos][y_pos]==1:
         return True
     return False
 
-def path_find(qn,grid_x,grid_y,x_pos,y_pos,sol_matrix,dirs):
-    if x_pos==grid_x-1 and y_pos==grid_x-1:
-        # print(x_pops,y_pos,dirs)
+def path_find(qn_matrix, grid_x, x_pos, y_pos,sol_matrix,dirs):
+    global start_btn , end_btn
+    if x_pos == int(end_btn[0])  and  y_pos == int(end_btn[1]) :
+        # print(x_pos,y_pos,dirs)
         sol_matrix[x_pos][y_pos]=1
         return True
 
-    if can_go(qn,x_pos,y_pos):
+    if if_can_go(qn_matrix,x_pos,y_pos):
         # print(x_pos,y_pos,dirs)
         sol_matrix[x_pos][y_pos]=1
-        if dirs!='-x' and path_find(qn,grid_x,grid_y,x_pos+1,y_pos,sol_matrix,'+x') :
+        if dirs!='-x' and path_find(qn_matrix,grid_x,x_pos+1,y_pos,sol_matrix,'+x') :
             return True
-        if dirs!='-y' and path_find(qn,grid_x,grid_y,x_pos,y_pos+1,sol_matrix,'+y') :
+        if dirs!='-y' and path_find(qn_matrix,grid_x,x_pos,y_pos+1,sol_matrix,'+y') :
             return True
-        if dirs!='+y' and path_find(qn,grid_x,grid_y,x_pos,y_pos-1,sol_matrix,'-y') :
+        if dirs!='+y' and path_find(qn_matrix,grid_x,x_pos,y_pos-1,sol_matrix,'-y') :
             return True
-        if dirs!='+x' and path_find(qn,grid_x,grid_y,x_pos-1,y_pos,sol_matrix,'-x') :
+        if dirs!='+x' and path_find(qn_matrix,grid_x,x_pos-1,y_pos,sol_matrix,'-x') :
             return True
 
         sol_matrix[x_pos][y_pos]=0
@@ -131,188 +533,420 @@ def path_find(qn,grid_x,grid_y,x_pos,y_pos,sol_matrix,dirs):
         return False
     return False
 
-          ##############################  Functions for manual button ############################
 
-def manual_msg():
-    messagebox.showinfo('Manual','First choose the starting point')
+                    ##########################  Solving page  ##########################
 
-          ##############################  Functions for back button ############################
+def ask_qn_num(frame_name,scr_name):
+    if frame_name:
+        clear_scr(frame_name)
+    click()
 
-def back_func(screen_name):
-    screen = Tk()
-    screen.title('MAZE')
-    screen.geometry('500x500+550+180')
-    # warn_unsaved=messagebox.showwarning('unsaved work','Your work was lost')
-    screen_name.destroy()
-    main_scr(screen)
-    
-          ########################  Functions for creating the grid button button #######################
+    ask_num_frame= Frame(scr_name,bg='orange',width=1366,height=770)
+    ask_num_frame.pack()
+    scr_name.title('Question Number')
 
-def create_button(name,x_pos,y_pos,scr_name):
-    new_name=Button(scr_name,text=name,fg='green',padx=5,pady=5,bd='5',bg='cyan',activebackground='red')
-    new_name.config(command=lambda:set_1(name,new_name))
-    new_name.place(x=x_pos,y=y_pos)
+    recomend(ask_num_frame)
 
-          ##############################  Functions for creating qn page ############################
+    qn_num=IntVar()
 
-def create_qn_scr(screen):
+    num_label = Label(ask_num_frame,text='Enter Number : ',bg='orange',font='bold')
+    num_label.place(x=490,y=250)
+
+    num_entry = Entry(ask_num_frame,textvariable=qn_num)
+    num_entry.place(x=630,y=250)
+    num_entry.delete(0,END)
+
+    submit_btn = Button(ask_num_frame,text='Submit',bd=5,bg='green',fg='cyan',command=lambda:validation_qn_num(ask_num_frame,qn_num)).place(x=630,y=320)
+    back_btn = Button(ask_num_frame,text='Back/cancel',bd=5,bg='green',fg='cyan',command=lambda:back(ask_num_frame)).place(x=615,y=370)
+
+def validation_qn_num(frame_name , inp_qn_num):
+    click()
+    qn_num = inp_qn_num.get()
+    # print('num : ',qn_num)
+
+    if qn_num>0:
+        retrive_qn(qn_num,frame_name)
+    else:
+        alert()
+        inp_eror = messagebox.showwarning('Error','Invalid Input')
+        ask_qn_num(frame_name,scr_name)
+
+def retrive_qn(qn_num,frame_name):
+    global querry_qn,querry_sol,start_pt,end_pt
     try:
-        screen.destroy()
+    # if True:
+        con=sql.connect('lqn_database.db')
+        c=con.cursor()
+        querry_qn = c.execute('select question from questions where ids=?', ([qn_num]))
+        querry_qn = querry_qn.fetchall()[0][0]
+        querry_qn = json.loads(querry_qn)
+
+        querry_sol = c.execute('select solution from questions where ids=?', ([qn_num]))
+        querry_sol = querry_sol.fetchall()[0][0]
+        querry_sol = json.loads(querry_sol)
+
+        start_pt = c.execute('select start from questions where ids=?', ([qn_num]))
+        start_pt = start_pt.fetchall()[0][0]
+        start_pt = json.loads(start_pt)
+
+        end_pt   = c.execute('select end from questions where ids=?', ([qn_num]))
+        end_pt = end_pt.fetchall()[0][0]
+        end_pt = json.loads(end_pt)
+        
+        con.commit()
+        con.close()
+        # print(start_pt,type(start_pt[0]))
+        # print(querry_qn,type(querry_qn))
+        show_qn(querry_qn,start_pt,end_pt,frame_name)
     except:
-        pass
+    # else:
+        alert()
+        retrive_eror = messagebox.showwarning('Error','Question not found')
 
-    global grid_x,grid_y
-    grid_x=int(input('x value : '))
-    grid_y=grid_x
+def create_user_sol_matrix(grid_size,start_pt,end_pt):
 
-    qn_scr=Tk()
-    qn_scr.geometry('500x500+550+180')
+    global user_sol_matrix
+    user_sol_matrix=[]
 
-    init_x=50
-    init_y=50
+    for i in range(grid_size):
+        u=[]
+        for j in range(grid_size):
+            if ( i==int(start_pt[0]) and j==int(start_pt[1]) ) or ( i==int(end_pt[0]) and j==int(end_pt[1]) ):
+                u.append(1)
+            else:
+                u.append(0)
+        user_sol_matrix.append(u)
 
-    btn_x=init_x
-    btn_y=init_y
+    return user_sol_matrix
 
-    global Button_name
-    Button_name={}    
-    for i in range(grid_x):
-        btn_y=init_y + (30*i)
-        a=[]
-        for j in range(grid_x):
-            btn_x=init_x+(30*j)
-            name=str(i)+str(j)
-            # name='B'
-            create_button(name,btn_x,btn_y,qn_scr)
-            Button_name[name]=1
+def show_qn(querry_qn,start_pt,end_pt,frame_name):
 
-# https://www.delftstack.com/howto/python-tkinter/how-to-pass-arguments-to-tkinter-button-command/
+    grid_size = len(querry_qn)
+    create_user_sol_matrix(grid_size,start_pt,end_pt)
 
-    back_btn=Button(qn_scr,text='Cancel/Back',fg='green',bd='5',command=lambda:back_func(qn_scr)).place(x=350,y=450)
-    submit_btn=Button(qn_scr,text='Submit',fg='green',bd='5',command=lambda:submit_func(qn_scr,Button_name,grid_x,grid_y)).place(x=250,y=350)
-          
-          ##############################  Functions for solving page ############################
+    clear_scr(frame_name)
+    solve_bgm()
 
-def ask_qn_num(qn_database,screen_name,grid_x,grid_y):
-    screen_name.destroy()
+    solve_frame = Frame(scr_name,bg='red',width=1366,height=770)
+    solve_frame.pack()
+    scr_name.title('Solve This..')
 
-    ask_scr=Tk()
-    ask_scr.geometry('500x500+550+180')
-
-    qn_num=Label(ask_scr,text='Enter number : ').place(x=50,y=50)
-    num=IntVar()
-    qn_entry=Entry(ask_scr,textvariable=num).place(x=200,y=50)
-
-    qn_num_submit_btn=Button(ask_scr,text='Submit',fg='green',bd='5',command=lambda:qn_num_submit(ask_scr,num,qn_database,grid_x,grid_y)).place(x=200,y=150)
-
-
-def qn_num_submit(scr_name,num,qn_database,grid_x,grid_y):
-    a=num.get()
-    
-    if a < len(qn_database)  and a>=0 :
-        l=qn_database
-        scr_name.destroy()
-        scr_name=Tk()
-        scr_name.geometry('500x500+500+180')
-        print_qn(l,a , scr_name)
-    else:
-        exceed_num=messagebox.showwarning('error','Qn num invalid')
-        ask_qn_num(qn_database,scr_name,grid_x,grid_y)
-
-def ans_page_btn(name,x_loc , y_loc , clr,qn,scr_name):
-    if qn[ int(name[0])] [ int(name[1]) ]==1:
-        btn_name= Button(scr_name,text=name,fg='blue',bg=clr,bd='5',activebackground='green')
-    else:
-        btn_name= Button(scr_name,text=name,fg='blue',bg=clr,bd='5',activebackground='red')
-
-    btn_name.place(x = x_loc , y = y_loc)
-    btn_name.config(command=lambda:ans_btn(name,btn_name,qn,scr_name))
-
-def print_qn(l , qn_num , scr_name):
-    qn=l[qn_num]
     init_x=50
     init_y=50
 
     cur_x=init_x
     cur_y=init_y
 
-    create_user_sol_matrix( len(qn),len( qn[0] ) )           # creates user sol matrix initialized with 0
+    for i in range(grid_size):
+        cur_y = init_y + (35*i)
+        for j in range(grid_size):
+            cur_x = init_x + (35*j)
+            ans_btn_id = [ str(i) , str(j) ]
 
+            if querry_qn[i][j]==0:
+                create_ans_matrix_btn(querry_qn,'red','X',solve_frame,cur_x,cur_y,ans_btn_id)
+            elif querry_qn[i][j]==1 and (i == int(start_pt[0]) and j == int(start_pt[1])) :
+                create_ans_matrix_btn(querry_qn,'blue','S',solve_frame,cur_x,cur_y,ans_btn_id)
+            elif querry_qn[i][j]==1 and (i == int(end_pt[0]) and j == int(end_pt[1])) :
+                create_ans_matrix_btn(querry_qn,'yellow','E',solve_frame,cur_x,cur_y,ans_btn_id)
+            elif querry_qn[i][j]==1:
+                create_ans_matrix_btn(querry_qn,'cyan','B',solve_frame,cur_x,cur_y,ans_btn_id)
+
+    submit = Button(solve_frame,text='Submit',bd=5,bg='green',command=lambda:check_ans()).place(x=520,y=450)
+    back_btn = Button(solve_frame,text='Back',bd=5,bg='green',command=lambda:back(solve_frame)).place(x=520,y=500)
+
+
+def create_ans_matrix_btn(querry_qn,clr,txt,frame_name,x_loc,y_loc,ans_btn_id):
+    if clr=='cyan':
+        ans_btn = Button(frame_name,text=txt,bg='cyan',fg='black',activebackground='green',bd=5)
+    else:
+        # print(clr)
+        ans_btn = Button(frame_name,text=txt,bg=clr,fg='black',activebackground=clr,bd=5)
+
+    ans_btn.place(x=x_loc , y=y_loc)
+    ans_btn.config(command=lambda:user_slct_btn(ans_btn_id,ans_btn) )
+
+def user_slct_btn(ans_btn_id,ans_btn):
+    click()
+
+    btn_clr = ans_btn.cget('bg')
+
+    if btn_clr=='cyan':
+        ans_btn.config(text='P',bg='green')
+        user_sol_matrix[ int(ans_btn_id[0]) ] [ int(ans_btn_id[1]) ] = 1
+    elif btn_clr=='green':
+        click_cancel()
+        ans_btn.config(text='B',bg='cyan')
+        user_sol_matrix[ int(ans_btn_id[0]) ] [ int(ans_btn_id[1]) ] = 0
+    elif btn_clr=='red' or btn_clr=='blue' or btn_clr=='yellow':
+        wrong_slct = messagebox.showwarning('Error','Can\'t choose that button')
+
+
+def check_ans():
+    click()
+    # print(querry_sol,user_sol_matrix)
+    if querry_sol==user_sol_matrix:
+        winner()
+        result=messagebox.showinfo('Result','Bravo..\n You Did It..!')
+        pg.mixer.Sound.stop(win_sound)
+        update_database('win')        
+    else:
+        gameover()
+        result=messagebox.showinfo('Result','Oops..\n you did some mistake..!')
+        pg.mixer.Sound.stop(over_sound)
+        update_database('loose')
+        
+
+                ##########################  User database update  ##########################
+
+def update_database(types):
+
+    con=sql.connect('login_database.db')
+    c=con.cursor()
+
+    if types=='win':
+        try:
+        # if True:
+            login_username='Ashutosh'
+            prev_point = c.execute('select points from login_data where users=?', ([login_username]) )
+            prev_point = prev_point.fetchall()[0][0]
+            cur_point = prev_point+10
+            c.execute('update login_data set points = ?  where users=? ', (cur_point , login_username) )
+            msg = 'You won 10 points.\n Your current point is '+ str(cur_point)
+            update_msg = messagebox.showwarning('Reward',msg)
+        except:
+        # else:
+            update_err = messagebox.showwarning('Update Error','Something wrong')
+    elif types=='loose':
+        try:
+        # if True:
+            login_username='Ashutosh'
+            prev_point = c.execute('select points from login_data where users=?', ([login_username]) )
+            prev_point = prev_point.fetchall()[0][0]
+            cur_point = prev_point-5
+            c.execute('update login_data set points = ?  where users=? ', (cur_point , login_username) )
+            msg = 'Your point is deducted by 5 due to wrong submission.\n Your current point is '+ str(cur_point)
+            update_msg = messagebox.showwarning('Reward',msg)
+        except:
+        # else:
+            update_err = messagebox.showwarning('Update Error','Something wrong')
+    con.commit()
+    con.close()
+
+
+                ##########################  music settings  ##########################
+
+pg.init()
+pg.mixer.init()
+
+def click():
+    global click_sound
+    click_sound = pg.mixer.Sound('/home/ashutosh/Desktop/project/games/soundeffect/click.wav')
+    pg.mixer.Sound.set_volume(click_sound,0.5)
+    pg.mixer.Sound.play(click_sound)
+
+def qn_bgm():
+    pg.mixer.music.load('/home/ashutosh/Desktop/project/games/soundeffect/bgm1_mystry_qn.wav')
+    pg.mixer.music.set_volume(0.5)
+    pg.mixer.music.play(-1)
+
+def solve_bgm():
+    pg.mixer.music.load('/home/ashutosh/Desktop/project/games/soundeffect/bgm_yoga_ans.wav')
+    pg.mixer.music.set_volume(0.5)
+    pg.mixer.music.play(-1)
+
+def click_cancel():
+    global click_cancel_sound
+    click_cancel_sound = pg.mixer.Sound('/home/ashutosh/Desktop/project/games/soundeffect/cancel2.wav')
+    pg.mixer.Sound.set_volume(click_cancel_sound,0.5)
+    pg.mixer.Sound.play(click_cancel_sound)
+
+def alert():
+    global alert_sound
+    alert_sound = pg.mixer.Sound('/home/ashutosh/Desktop/project/games/soundeffect/alert1.wav')
+    pg.mixer.Sound.set_volume(alert_sound,0.2)
+    pg.mixer.Sound.play(alert_sound)
+
+
+def successfull():
+    global success_sound
+    success_sound = pg.mixer.Sound('/home/ashutosh/Desktop/project/games/soundeffect/successfull.wav')
+    pg.mixer.Sound.set_volume(success_sound,0.5)
+    pg.mixer.Sound.play(success_sound)
+
+def winner():
+    global win_sound
+    win_sound = pg.mixer.Sound('/home/ashutosh/Desktop/project/games/soundeffect/winner.wav')
+    pg.mixer.Sound.set_volume(win_sound,0.2)
+    pg.mixer.Sound.play(win_sound)
+
+def gameover():
+    global over_sound
+    over_sound = pg.mixer.Sound('/home/ashutosh/Desktop/project/games/soundeffect/gameover.wav')
+    pg.mixer.Sound.set_volume(over_sound,0.3)
+    pg.mixer.Sound.play(over_sound)
+
+def type_choose():
+    global type_sound
+    type_sound = pg.mixer.Sound('/home/ashutosh/Desktop/project/games/soundeffect/btn type choose1.wav')
+    pg.mixer.Sound.set_volume(type_sound,0.3)
+    pg.mixer.Sound.play(type_sound)
+
+
+                ##########################  Recomendation  ##########################
+
+def recomend(frame_name):
+    # try:
     if True:
-        # print(qn)
-        for i in range(len(qn)):
-            cur_y = init_y + (35*i)
-            for j in range(len(qn[i])):
-                cur_x = init_x + (35*j)
-                name=str(i)+str(j)
-                if qn[i][j]==1:
-                    ans_page_btn(name,cur_x,cur_y,'cyan',qn,scr_name)
-                else:
-                    ans_page_btn(name,cur_x,cur_y,'red',qn,scr_name)
+        con=sql.connect('lqn_database.db')
+        c=con.cursor()
+        lvl_1=c.execute('select id from questions where tag=?',(['easy']))
+        lvl_1=lvl_1.fetchall()
+
+        lvl_2=c.execute('select id from questions where tag=?',(['mid']))
+        lvl_2=lvl_2.fetchall()
+
+        lvl_3=c.execute('select id from questions where tag=?',(['hard']))
+        lvl_3=lvl_3.fetchall()
+
+        show_recomend(lvl_1,lvl_2,lvl_3,frame_name)
+
+    # except:
     else:
-        err_msg=messagebox.showwarning('warning..!','Error')
+        retrive_eror=messagebox.showwarning('Error','Server Error')
 
-    # print(qn)
-    # print(user_sol_matrix)
+def show_recomend(l1,l2,l3,frame_name):
+    recomend_frame = Frame(frame_name,width=300,height=500,bg='orange')
+    recomend_frame.place(x=80,y=150)
+    global init_x_pos,init_y_pos
+    init_x_pos=5
+    init_y_pos=60
+    heading = Label(recomend_frame,text='----Recomended Users----',bg='orange',font=('Verdana',10,'bold')).place(x=5,y=0)
+    easy_label = Label(recomend_frame,text='----Easy----',bg='orange',font=('Verdana',10,'bold')).place(x=20,y=35)
 
-    back_btn=Button(scr_name,text='Cancel/Back',fg='green',bd='5',command=lambda:back_func(scr_name)).place(x=350,y=450)
-    submit_btn=Button(scr_name,text='Submit',fg='green',bd='5',command=lambda:ans_submit(user_sol_matrix,qn_num)).place(x=250,y=350)
-
-
-def ans_btn(name,btn_name,qn,scr_name):
-    if qn[ int(name[0])] [ int(name[1]) ]==1 and btn_name.cget('bg') != 'green':
-        btn_name.config(bg='green')
-        user_sol_matrix[ int(name[0]) ] [ int(name[1]) ]=1
-
-    elif qn[ int(name[0])] [ int(name[1]) ]==1 and btn_name.cget('bg') == 'green':
-        btn_name.config(bg='cyan')
-        user_sol_matrix[ int(name[0]) ] [ int(name[1]) ]=0
-
-    else:
-        wrong_btn = messagebox.showwarning('wrong',' you can\'t choose an obstacle..')
-
+    recomend_user(l1,recomend_frame,frame_name)
     
-def create_ans_scr(screen):
-    try:
-        screen.destroy()
-    except:
-        pass
-    ans_scr=Tk()
-    ans_scr.title('Solve A question')
-    ans_scr.geometry('500x500+550+180')
-    # msg_label=tk.Label(ans_scr,text='Under Construction...').place(x=100,y=50)
-    back_btn=Button(ans_scr,text='Back',fg='green',bd='5',command=lambda:back_func(ans_scr)).place(x=400,y=450)
+    init_y_pos+=50
+    easy_label = Label(recomend_frame,text='----Midium----',bg='orange',font=('Verdana',10,'bold')).place(x=20,y=init_y_pos)
+    init_y_pos+=25
 
-    if qn_database :
-        qn_show_btn= Button(ans_scr,text='Choose question',fg='green',bd='5',command=lambda:ask_qn_num(qn_database,ans_scr,grid_x,grid_x)).place(x=170,y=200)
+    # print(init_y_pos)
+    recomend_user(l2,recomend_frame,frame_name)
+
+    init_y_pos+=50
+    easy_label = Label(recomend_frame,text='----Hard----',bg='orange',font=('Verdana',10,'bold')).place(x=20,y=init_y_pos)
+    init_y_pos+=25
+
+    # print(init_y_pos)
+    recomend_user(l3,recomend_frame,frame_name)
+
+def recomend_user(l,frame_name,main_frame):
+    global init_x_pos,init_y_pos
+    lists = []
+    if len(l)>0:
+        for i in l:
+            # print(i[0],lists)
+            if i[0] not in lists and len(lists)<=5:
+            # if i[0] and len(lists)<=5:
+                init_y_pos+=25
+                btn=Button(frame_name,text=i[0],bg='orange',bd='0',font='bold',highlightthickness='0')
+                btn.config(command=lambda:fetch_user_qn(btn,main_frame))
+                btn.place(x=5,y=init_y_pos)
+                lists.append(i[0])
+            elif len(lists) > 5:
+                break
+            else:
+                pass
     else:
-        warning=messagebox.showinfo('Warning..!','No question is available now...please wait for question to be uploaded, or you create a queestion for others..')
-        back_func(ans_scr)
+        # btn=Button(frame_name,text='NULL',bd='0',bg='orange',font='bold',highlightthickness='0')
+        # btn.place(x=5,y=init_y_pos)
+        null_label = Label(frame_name,text='NULL',bg='orange',font='bold').place(x=5,y=init_y_pos)
 
-def ans_submit(user_sol_matrix,qn_num):
-    # print('user : ',user_sol_matrix)
-    # print('ans_data : ',ans_database)
-    if user_sol_matrix == ans_database[qn_num]:
-        winner=messagebox.showinfo('Result','Congrats...!\n You Won the game...')
+def fetch_user_qn(btn_name,main_frame):
+    click()
+    user_name = btn_name.cget('text')
+
+    # try:
+    if True:
+        con=sql.connect('lqn_database.db')
+        c=con.cursor()
+        qn = c.execute('select question from questions where id=?',([user_name]))
+        qn=qn.fetchall()
+        con.commit()
+        con.close()
+        # ask_qn_num(frame_name,scr_name)
+        recomend_ask_qn_num(qn,user_name,main_frame)
+    # except:
     else:
-        winner=messagebox.showinfo('Result','Opps...!\n You loose the game. Don\'t stop. Try again.')
+        retrive_eror = messagebox.showwarning('Error','Something Wrong')
 
-#############################################################################################################
+# show_qn(querry_qn,start_pt,end_pt,frame_name)
+def recomend_ask_qn_num(qn,user_name,main_frame):
+    if main_frame:
+        clear_scr(main_frame)
 
+    ask_num_frame= Frame(scr_name,bg='orange',width=1366,height=770)
+    ask_num_frame.pack()
+    scr_name.title('Recomended Question')
 
-            ####################################  Create screen and setups  #####################################
+    txt=user_name+' has '+str(len(qn))+' Question(s)'
+    info = Label(ask_num_frame,text=txt,bg='orange',font='bold').place(x=560,y=200)
 
-qn_database=[]
-ans_database=[]
+    qn_num=IntVar()
 
-screen = Tk()
-screen.title('MAZE')
-screen.geometry('500x500+550+180')
+    num_label = Label(ask_num_frame,text='Enter Number : ',bg='orange',font='bold')
+    num_label.place(x=490,y=250)
 
-main_scr(screen)
+    num_entry = Entry(ask_num_frame,textvariable=qn_num)
+    num_entry.place(x=630,y=250)
+    num_entry.delete(0,END)
 
-screen.mainloop()
+    submit_btn = Button(ask_num_frame,text='Submit',bd=5,bg='green',fg='cyan',command=lambda:validation_qn_num(ask_num_frame,qn_num)).place(x=630,y=320)
+    back_btn = Button(ask_num_frame,text='Back/cancel',bd=5,bg='green',fg='cyan',command=lambda:back(ask_num_frame)).place(x=615,y=370)
+    
 
-print('qn_database  : ' ,qn_database)
-print('ans_database : ' ,ans_database)
-print('user ans     : ' ,user_sol_matrix)
+                    ##########################  Manual page  ##########################
+def manual(frame_name):
+    # if frame_name:
+    #     clear_scr(frame_name)
+    click()
+
+    manual_frame = Frame(frame_name,bg='cyan',width=500,height=500)
+    manual_frame.place(x=420,y=70)
+    
+    manual_lbl1 = Label(manual_frame,bg='cyan',text='1. From home page select what do you want to do.').place(x=50,y=50)
+    manual_lbl2 = Label(manual_frame,bg='cyan',text='2. In question page first enter the grid size.').place(x=50,y=80)
+    manual_lbl3 = Label(manual_frame,bg='cyan',text='3. Then in the next page choose the button type from right side.\nbuttons : obstacle,start and end').place(x=50,y=110)
+    manual_lbl4 = Label(manual_frame,bg='cyan',text='4. you should have points >=0 to upload questions.\nElse you have to loan some amount with interest.').place(x=50,y=150)
+    manual_lbl5 = Label(manual_frame,bg='cyan',text='5. You have to return total amount before the time limit,\nshown during the loan process.Else you will fined').place(x=50,y=190)
+    manual_lbl2 = Label(manual_frame,bg='cyan',text='4. To quit the game please press Alt+F4.').place(x=50,y=230)
+
+    okk_btn= Button(manual_frame,text='Ok',bg='red',bd=3,command=lambda:okk(manual_frame)).place(x=250,y=300)
+
+def okk(frame_name):
+    clear_scr(frame_name)
+
+                    ##########################  Initialize  ##########################
+
+scr_name=Tk()
+# scr_name.geometry('1366x770+350+100')
+scr_name.attributes('-fullscreen',True)
+
+start_count=0
+end_count=0
+type_btn='none'
+
+start_btn = []
+end_btn = []
+# intro.intro()
+# reg_log_page('login',scr_name)
+frame=Frame(scr_name,bg='red',width=1366,height=770)
+home_scr(scr_name,frame)
+
+# loan(frame)
+
+scr_name.mainloop()
+
+# print('qn   : ',qn_matrix)
+# print('sol  : ',sol_matrix)
+# print('user : ',user_sol_matrix)
